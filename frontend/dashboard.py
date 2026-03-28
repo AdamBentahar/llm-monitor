@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import os
+from datetime import datetime, timedelta
 
 st.set_page_config(
     page_title="LLM Monitor Dashboard",
@@ -119,9 +120,10 @@ chart_df = df[df["intelligence_score"].notna()][["name", "intelligence_score"]]\
 if not chart_df.empty:
     st.bar_chart(chart_df.set_index("name"))
 
+st.divider()
+
 # New models
 st.subheader("🆕 Newly Detected Models (Last 24h)")
-from datetime import datetime, timedelta
 if "collected_at" in df.columns:
     df["collected_at"] = pd.to_datetime(df["collected_at"])
     cutoff = datetime.utcnow() - timedelta(hours=24)
@@ -130,3 +132,54 @@ if "collected_at" in df.columns:
         st.dataframe(new_df, use_container_width=True)
     else:
         st.info("No new models detected in the last 24 hours")
+
+st.divider()
+
+# Model Comparison
+st.subheader("⚖️ Compare 2 Models Side by Side")
+all_names = df["name"].tolist()
+col_a, col_b = st.columns(2)
+with col_a:
+    model_a = st.selectbox("Select Model A", all_names, index=0)
+with col_b:
+    model_b = st.selectbox("Select Model B", all_names, index=1)
+
+ma = df[df["name"] == model_a].iloc[0]
+mb = df[df["name"] == model_b].iloc[0]
+
+metrics = {
+    "Intelligence Score": ("intelligence_score", "higher is better"),
+    "Speed (tok/s)": ("speed_tokens_per_sec", "higher is better"),
+    "Price Input ($/M)": ("price_input", "lower is better"),
+    "Context Window": ("context_window", "higher is better"),
+    "License": ("license_type", ""),
+}
+
+compare_data = []
+for label, (col, note) in metrics.items():
+    va = ma.get(col, "N/A")
+    vb = mb.get(col, "N/A")
+    compare_data.append({
+        "Metric": label,
+        model_a: va,
+        model_b: vb,
+        "Note": note
+    })
+
+st.dataframe(pd.DataFrame(compare_data), use_container_width=True)
+
+st.divider()
+
+# Historical Trend
+st.subheader("📅 Historical Collection Trend")
+if "collected_at" in df.columns:
+    df["date"] = df["collected_at"].dt.date
+    trend = df.groupby("date").size().reset_index(name="models_collected")
+    st.line_chart(trend.set_index("date"))
+    st.caption("Number of models collected per day")
+
+st.divider()
+
+# Footer
+st.markdown("---")
+st.markdown("Built by **Adam Bentahar** — ESITH 2025/2026 | EPINEON AI Challenge 2026")
