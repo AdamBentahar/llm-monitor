@@ -48,16 +48,18 @@ def get_recommendations(df, profile, commercial_only=False):
     scored = sorted(valid, key=lambda m: compute_score(m, profile), reverse=True)
     return scored[:3]
 
-# Load data from DB
 @st.cache_data
 def load_data():
+    csv_path = "data/models.csv"
     db_path = "llm_monitor.db"
-    if not os.path.exists(db_path):
-        return pd.DataFrame()
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql("SELECT * FROM llm_models", conn)
-    conn.close()
-    return df
+    if os.path.exists(csv_path):
+        return pd.read_csv(csv_path)
+    elif os.path.exists(db_path):
+        conn = sqlite3.connect(db_path)
+        df = pd.read_sql("SELECT * FROM llm_models", conn)
+        conn.close()
+        return df
+    return pd.DataFrame()
 
 df = load_data()
 
